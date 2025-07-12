@@ -24,10 +24,7 @@ This Python project uses **Selenium** to scrape bestseller audiobook data from [
 - `pandas`
 - `time`
 
-Install required packages using:
 
-```bash
-pip install selenium panda
 
 ## ⚠️ Common Issues & Tips
 
