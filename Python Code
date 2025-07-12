@@ -1,0 +1,95 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
+import time
+
+website = "https://www.audible.in/charts"
+chromedriver_path = r"C:\Users\SAHIL RATHOUR\Downloads\WebDriverbin\chromedriver.exe"
+service = Service(executable_path=chromedriver_path)
+driver = webdriver.Chrome(service=service)
+driver.get(website)
+
+wait = WebDriverWait(driver, 10)
+wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'bc-list-item') and contains(@class,'productListItem')]")))
+
+title = []
+author = []
+length = []
+price = []
+
+
+pagination = driver.find_element(By.XPATH, '//ul[contains(@class, "pagingElements")]')
+page = pagination.find_elements(By.XPATH, './/li[contains(@class, "bc-list-item")]')
+
+
+print("Pagination elements:", [p.text for p in page])
+
+
+page_numbers = []
+for p in page:
+    txt = p.text.strip()
+    if not txt:
+        try:
+            txt = p.find_element(By.TAG_NAME, "a").text.strip()
+        except:
+            txt = ""
+    page_numbers.append(txt)
+
+print("Extracted page numbers:", page_numbers)
+
+
+if len(page_numbers) < 2:
+    last_page = 1
+else:
+    last_page = int(page_numbers[-2])
+
+
+current_page = 1
+
+while current_page <= last_page:
+    print(f"Scraping page {current_page} of {last_page}")
+    wait.until(EC.presence_of_all_elements_located((By.XPATH, "//li[contains(@class,'bc-list-item') and contains(@class,'productListItem')]")))
+    books = driver.find_elements(By.XPATH, "//li[contains(@class,'bc-list-item') and contains(@class,'productListItem')]")
+    for book in books:
+        try:
+            title.append(book.find_element(By.TAG_NAME, "h3").text)
+        except:
+            title.append("")
+        try:
+            author.append(book.find_element(By.XPATH, ".//li[contains(@class, 'authorLabel')]//a").text)
+        except:
+            author.append("")
+        try:
+            full_text = book.find_element(By.XPATH, ".//span[contains(text(),'Length:')]").text
+            duration = full_text.replace("Length:", "").strip()
+            length.append(duration)
+        except:
+            length.append("")
+        try:
+            price.append(book.find_element(By.XPATH, "//p[contains(@id,'buybox-regular-price')]//span[contains(text(),'₹')]").text)
+        except:
+            price.append("")
+
+    current_page += 1
+    if current_page <= last_page:
+        try:
+            next_button = driver.find_element(By.XPATH, '//span[contains(@class,"nextButton")]/a')
+            next_button.click()
+            time.sleep(3)
+        except Exception as e:
+            print(f"Could not click next: {e}")
+            break
+
+driver.quit()
+
+df_books = pd.DataFrame({
+    "Title": title,
+    "Author": author,
+    "Length": length,
+    "Price": price
+})
+df_books.to_csv("Bestseller_books.csv", index=False)
+print("Saved Bestseller_books.csv with", len(df_books), "rows.")
